@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Chat Embed Demo</title></head>
+<body>
+  <h3>Embed Demo</h3>
+  <p>本页面用于本地调试 embed 脚本。</p>
+
+  <script>
+    (function(){
+      // 调试时直接把 iframe 指向后端 embed 页面
+      const BACKEND_URL = 'http://localhost:3001';
+      const iframe = document.createElement('iframe');
+      iframe.src = BACKEND_URL + '/?embed=1&agent=AGENT001';
+      iframe.style = 'position:fixed;bottom:20px;right:20px;width:360px;height:520px;border:none;border-radius:8px;z-index:99999;';
+      document.body.appendChild(iframe);
+    })();
+  </script>
+</body>
+</html>
