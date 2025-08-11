@@ -4,8 +4,9 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js"
+    "build": "npm rebuild better-sqlite3 && tsc",
+    "start": "node dist/server.js",
+    "postinstall": "npm rebuild better-sqlite3"
   },
   "dependencies": {
     "better-sqlite3": "^8.0.0",

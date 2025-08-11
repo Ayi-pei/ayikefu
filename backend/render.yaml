@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ayikefu-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm rebuild better-sqlite3 && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18.18.0
+      - key: PORT
+        value: 3001
+      - key: AGENT_DEFAULT_SECRET
+        value: AYIKEFU_SUPER_SECRET_2024_PRODUCTION_KEY_32CHARS
+      - key: SQLITE_PATH
+        value: ./data/sqlite.db
