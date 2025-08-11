@@ -16,7 +16,7 @@ const fs_1 = __importDefault(require("fs"));
 const redisClient_1 = require("../redisClient");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
-const dbPath = process.env.SQLITE_PATH || path_1.default.join(process.cwd(), 'data', 'sqlite.db');
+const dbPath = process.env.SQLITE_PATH || path_1.default.join(__dirname, '..', '..', 'data', 'sqlite.db');
 const dir = path_1.default.dirname(dbPath);
 if (!fs_1.default.existsSync(dir))
     fs_1.default.mkdirSync(dir, { recursive: true });
@@ -37,15 +37,22 @@ function genRandomKey() {
 function createKey(agentId, daysValid = 7) {
     const key = genRandomKey();
     const expiresAt = daysValid ? Math.floor(Date.now() / 1000) + daysValid * 86400 : null;
-    const info = db.prepare(`INSERT INTO agent_keys (key_code, agent_id, expires_at) VALUES (?, ?, ?)`).run(key, agentId, expiresAt);
+    let info;
+    info = db.prepare(`INSERT INTO agent_keys (key_code, agent_id, expires_at) VALUES (?, ?, ?)`).run(key, agentId, expiresAt);
     const payload = JSON.stringify({ agentId, expiresAt });
-    if (expiresAt) {
-        const ttl = expiresAt - Math.floor(Date.now() / 1000);
-        if (ttl > 0)
-            redisClient_1.redis.set((0, redisClient_1.keyPrefix)('agent_key', key), payload, 'EX', ttl);
+    // Try to cache in Redis, but don't fail if Redis is unavailable
+    try {
+        if (expiresAt) {
+            const ttl = expiresAt - Math.floor(Date.now() / 1000);
+            if (ttl > 0)
+                redisClient_1.redis.set((0, redisClient_1.keyPrefix)('agent_key', key), payload, 'EX', ttl);
+        }
+        else {
+            redisClient_1.redis.set((0, redisClient_1.keyPrefix)('agent_key', key), payload);
+        }
     }
-    else {
-        redisClient_1.redis.set((0, redisClient_1.keyPrefix)('agent_key', key), payload);
+    catch (err) {
+        console.warn('Failed to cache key in Redis:', err);
     }
     return { id: info.lastInsertRowid, key_code: key, agent_id: agentId, expires_at: expiresAt, status: 'active' };
 }
@@ -63,12 +70,18 @@ function getKeyFromDb(key) {
     };
 }
 async function validateKey(key) {
-    const cache = await redisClient_1.redis.get((0, redisClient_1.keyPrefix)('agent_key', key));
-    if (cache) {
-        const parsed = JSON.parse(cache);
-        if (parsed.expiresAt && parsed.expiresAt < Math.floor(Date.now() / 1000))
-            return { valid: false, reason: 'expired' };
-        return { valid: true, agentId: parsed.agentId };
+    // Try to get from Redis cache first, but fallback to database if Redis fails
+    try {
+        const cache = await redisClient_1.redis.get((0, redisClient_1.keyPrefix)('agent_key', key));
+        if (cache) {
+            const parsed = JSON.parse(cache);
+            if (parsed.expiresAt && parsed.expiresAt < Math.floor(Date.now() / 1000))
+                return { valid: false, reason: 'expired' };
+            return { valid: true, agentId: parsed.agentId };
+        }
+    }
+    catch (err) {
+        console.warn('Failed to get key from Redis cache:', err);
     }
     const row = getKeyFromDb(key);
     if (!row)
@@ -77,14 +90,20 @@ async function validateKey(key) {
         return { valid: false, reason: 'disabled' };
     if (row.expires_at && row.expires_at < Math.floor(Date.now() / 1000))
         return { valid: false, reason: 'expired' };
-    const payload = JSON.stringify({ agentId: row.agent_id, expiresAt: row.expires_at });
-    if (row.expires_at) {
-        const ttl = row.expires_at - Math.floor(Date.now() / 1000);
-        if (ttl > 0)
-            await redisClient_1.redis.set((0, redisClient_1.keyPrefix)('agent_key', key), payload, 'EX', ttl);
+    // Try to cache the result, but don't fail if Redis is unavailable
+    try {
+        const payload = JSON.stringify({ agentId: row.agent_id, expiresAt: row.expires_at });
+        if (row.expires_at) {
+            const ttl = row.expires_at - Math.floor(Date.now() / 1000);
+            if (ttl > 0)
+                await redisClient_1.redis.set((0, redisClient_1.keyPrefix)('agent_key', key), payload, 'EX', ttl);
+        }
+        else {
+            await redisClient_1.redis.set((0, redisClient_1.keyPrefix)('agent_key', key), payload);
+        }
     }
-    else {
-        await redisClient_1.redis.set((0, redisClient_1.keyPrefix)('agent_key', key), payload);
+    catch (err) {
+        console.warn('Failed to cache key in Redis:', err);
     }
     return { valid: true, agentId: row.agent_id };
 }
@@ -93,5 +112,11 @@ function listKeys() {
 }
 function disableKey(key) {
     db.prepare(`UPDATE agent_keys SET status='disabled' WHERE key_code = ?`).run(key);
-    redisClient_1.redis.del((0, redisClient_1.keyPrefix)('agent_key', key));
+    // Try to remove from Redis cache, but don't fail if Redis is unavailable
+    try {
+        redisClient_1.redis.del((0, redisClient_1.keyPrefix)('agent_key', key));
+    }
+    catch (err) {
+        console.warn('Failed to remove key from Redis cache:', err);
+    }
 }

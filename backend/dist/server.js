@@ -9,8 +9,8 @@ const ws_1 = require("ws");
 const path_1 = __importDefault(require("path"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const admin_1 = __importDefault(require("./routes/admin"));
-const keyService_1 = require("./services/keyService");
 const wsHandler_1 = require("./wsHandler");
+const authUtils_1 = require("./authUtils");
 const fs_1 = __importDefault(require("fs"));
 dotenv_1.default.config();
 const PORT = +(process.env.PORT || 3001);
@@ -23,6 +23,132 @@ if (fs_1.default.existsSync(staticDir)) {
 }
 // admin routes
 app.use('/admin', admin_1.default);
+// embed page route
+app.get('/', (req, res) => {
+    const embed = req.query.embed;
+    const agent = req.query.agent;
+    if (embed === '1') {
+        // Return a simple chat interface HTML
+        res.send(`
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客服聊天</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; height: 100vh; display: flex; flex-direction: column; }
+        .chat-header { background: #007bff; color: white; padding: 15px; text-align: center; }
+        .chat-messages { flex: 1; padding: 10px; overflow-y: auto; background: #f8f9fa; }
+        .message { margin: 10px 0; padding: 8px 12px; border-radius: 8px; max-width: 80%; }
+        .message.user { background: #007bff; color: white; margin-left: auto; }
+        .message.agent { background: white; border: 1px solid #ddd; }
+        .message.system { background: #28a745; color: white; text-align: center; margin: 5px auto; max-width: 60%; font-size: 12px; }
+        .chat-input { display: flex; padding: 10px; background: white; border-top: 1px solid #ddd; }
+        .chat-input input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-right: 10px; }
+        .chat-input button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .chat-input button:hover { background: #0056b3; }
+        .status { padding: 5px 10px; background: #fff3cd; border-bottom: 1px solid #ffeaa7; font-size: 12px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="chat-header">
+        <h3>在线客服</h3>
+    </div>
+    <div class="status" id="status">正在连接...</div>
+    <div class="chat-messages" id="messages"></div>
+    <div class="chat-input">
+        <input type="text" id="messageInput" placeholder="请输入消息..." disabled>
+        <button id="sendButton" disabled>发送</button>
+    </div>
+
+    <script>
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const statusDiv = document.getElementById('status');
+        
+        let ws = null;
+        let userId = 'user_' + Math.random().toString(36).substr(2, 9);
+        
+        function addMessage(text, type = 'system') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + type;
+            messageDiv.textContent = text;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function updateStatus(text, color = '#fff3cd') {
+            statusDiv.textContent = text;
+            statusDiv.style.backgroundColor = color;
+        }
+        
+        function connect() {
+            const wsUrl = \`ws://\${window.location.host}/?role=user&id=\${userId}\`;
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                updateStatus('已连接，等待客服...', '#d4edda');
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                addMessage('欢迎使用在线客服，请稍等客服接入...', 'system');
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === 'welcome') {
+                    // Welcome message handled in onopen
+                } else if (data.type === 'notice') {
+                    addMessage(data.text, 'system');
+                    if (data.text.includes('已接入')) {
+                        updateStatus('客服已接入', '#d4edda');
+                    }
+                } else if (data.type === 'chat' && data.from === 'agent') {
+                    addMessage(data.text, 'agent');
+                }
+            };
+            
+            ws.onclose = function() {
+                updateStatus('连接已断开', '#f8d7da');
+                messageInput.disabled = true;
+                sendButton.disabled = true;
+                addMessage('连接已断开，正在重连...', 'system');
+                setTimeout(connect, 3000);
+            };
+            
+            ws.onerror = function() {
+                updateStatus('连接错误', '#f8d7da');
+                addMessage('连接出现错误', 'system');
+            };
+        }
+        
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+            
+            ws.send(JSON.stringify({ type: 'chat', text: text }));
+            addMessage(text, 'user');
+            messageInput.value = '';
+        }
+        
+        sendButton.onclick = sendMessage;
+        messageInput.onkeypress = function(e) {
+            if (e.key === 'Enter') sendMessage();
+        };
+        
+        // Start connection
+        connect();
+    </script>
+</body>
+</html>
+    `);
+    }
+    else {
+        res.send('<h1>Backend Server</h1><p>WebSocket chat backend is running.</p>');
+    }
+});
 const server = http_1.default.createServer(app);
 const wss = new ws_1.WebSocketServer({ noServer: true });
 server.on('upgrade', async (req, socket, head) => {
@@ -31,44 +157,34 @@ server.on('upgrade', async (req, socket, head) => {
         const role = url.searchParams.get('role');
         const id = url.searchParams.get('id') || undefined;
         const token = url.searchParams.get('token') || undefined;
-        if (role === 'agent') {
-            if (!token) {
-                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-                socket.destroy();
-                return;
-            }
-            const ADMIN_SECRET = process.env.AGENT_DEFAULT_SECRET || 'SUPERSECRET1234';
-            if (token === ADMIN_SECRET) {
-                wss.handleUpgrade(req, socket, head, (ws) => {
-                    wss.emit('connection', ws, req, { role: 'agent', agentId: 'ADMIN' });
-                    (0, wsHandler_1.handleAgentConnect)(ws, 'ADMIN');
-                });
-                return;
-            }
-            const v = await (0, keyService_1.validateKey)(token);
-            if (!v.valid) {
-                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-                socket.destroy();
-                return;
-            }
+        // Use the new authentication utility
+        const authResult = await (0, authUtils_1.authenticateWebSocket)(role, token, id);
+        if (!authResult.valid) {
+            const errorResponse = `HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\n\r\n{"error":"${authResult.error || 'Authentication failed'}"}`;
+            socket.write(errorResponse);
+            socket.destroy();
+            return;
+        }
+        if (authResult.role === 'agent') {
             wss.handleUpgrade(req, socket, head, (ws) => {
-                wss.emit('connection', ws, req, { role: 'agent', agentId: v.agentId });
-                (0, wsHandler_1.handleAgentConnect)(ws, v.agentId);
+                wss.emit('connection', ws, req, { role: 'agent', agentId: authResult.agentId });
+                (0, wsHandler_1.handleAgentConnect)(ws, authResult.agentId);
             });
             return;
         }
-        if (role === 'user') {
+        if (authResult.role === 'user') {
             wss.handleUpgrade(req, socket, head, (ws) => {
-                wss.emit('connection', ws, req, { role: 'user', id });
-                (0, wsHandler_1.handleUserConnect)(ws, id || undefined);
+                wss.emit('connection', ws, req, { role: 'user', id: authResult.userId });
+                (0, wsHandler_1.handleUserConnect)(ws, authResult.userId);
             });
             return;
         }
-        socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+        socket.write('HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\n\r\n{"error":"Invalid role"}');
         socket.destroy();
     }
     catch (e) {
-        socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+        console.error('WebSocket upgrade error:', e);
+        socket.write('HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\n\r\n{"error":"Internal server error"}');
         socket.destroy();
     }
 });

@@ -38,31 +38,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const keyService = __importStar(require("../services/keyService"));
+const auth_1 = require("../auth");
 const router = express_1.default.Router();
-const ADMIN_SECRET = process.env.AGENT_DEFAULT_SECRET || 'SUPERSECRET1234';
-function checkAdmin(req) {
-    const token = (req.headers.authorization || '').replace('Bearer ', '');
-    return token === ADMIN_SECRET;
-}
-router.post('/keys', (req, res) => {
-    if (!checkAdmin(req))
-        return res.status(401).json({ error: 'unauthorized' });
+router.post('/keys', auth_1.requireAdmin, (req, res) => {
     const { agentId, days } = req.body;
     if (!agentId)
         return res.status(400).json({ error: 'agentId required' });
+    // Validate agentId format
+    if (!/^[a-zA-Z0-9_-]+$/.test(agentId)) {
+        return res.status(400).json({ error: 'Invalid agentId format. Only alphanumeric, underscore and dash allowed.' });
+    }
     const key = keyService.createKey(agentId, days ?? 7);
     res.json(key);
 });
-router.get('/keys', (req, res) => {
-    if (!checkAdmin(req))
-        return res.status(401).json({ error: 'unauthorized' });
+router.get('/keys', auth_1.requireAdmin, (req, res) => {
     const list = keyService.listKeys();
     res.json(list);
 });
-router.post('/keys/:key/disable', (req, res) => {
-    if (!checkAdmin(req))
-        return res.status(401).json({ error: 'unauthorized' });
+router.post('/keys/:key/disable', auth_1.requireAdmin, (req, res) => {
     const key = req.params.key;
+    // Validate key format
+    if (!/^[A-F0-9]{16}$/.test(key)) {
+        return res.status(400).json({ error: 'Invalid key format' });
+    }
     keyService.disableKey(key);
     res.json({ ok: true });
 });

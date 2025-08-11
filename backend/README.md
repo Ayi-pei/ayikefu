@@ -1,12 +1,12 @@
 # Backend - no-register-chat-backend
 
-ç¯å¢ƒï¼š
-1. å¤åˆ¶ .env.example -> .env å¹¶ä¿®æ”¹
-2. éœ€è¦ Redis å¯ç”¨ï¼ˆæœ¬åœ°æˆ–å¤–éƒ¨ï¼‰
+»·¾³£º
+1. ¸´ÖÆ .env.example -> .env ²¢ĞŞ¸Ä
+2. ĞèÒª Redis ¿ÉÓÃ£¨±¾µØ»òÍâ²¿£©
 
-æœ¬åœ°è°ƒè¯•ï¼š
-- å®‰è£…ä¾èµ–ï¼šnpm install
-- å¯åŠ¨ï¼šnpm run dev
+±¾µØµ÷ÊÔ£º
+- °²×°ÒÀÀµ£ºnpm install
+- Æô¶¯£ºnpm run dev
 
-ç”Ÿæˆå¡å¯†ï¼š
+Éú³É¿¨ÃÜ£º
 curl -X POST http://localhost:3001/admin/keys -H "Authorization: Bearer SUPERSECRET1234" -H "Content-Type: application/json" -d '{"agentId":"AGENT001","days":7}'
