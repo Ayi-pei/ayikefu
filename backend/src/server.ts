@@ -4,7 +4,7 @@ import { WebSocketServer } from 'ws';
 import path from 'path';
 import dotenv from 'dotenv';
 import adminRoutes from './routes/admin';
-import { validateKey } from './services/keyService';
+import { validateKey } from './services/memoryKeyService';
 import { handleUserConnect, handleAgentConnect } from './wsHandler';
 import { authenticateWebSocket } from './authUtils';
 import fs from 'fs';

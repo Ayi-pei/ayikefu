@@ -1,5 +1,5 @@
 import express from 'express';
-import * as keyService from '../services/keyService';
+import * as keyService from '../services/memoryKeyService';
 import { requireAdmin } from '../auth';
 const router = express.Router();
 
