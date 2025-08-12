@@ -86,7 +86,8 @@ app.get('/', (req, res) => {
         }
         
         function connect() {
-            const wsUrl = \`ws://\${window.location.host}/?role=user&id=\${userId}\`;
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = \`\${protocol}//\${window.location.host}/?role=user&id=\${userId}\`;
             ws = new WebSocket(wsUrl);
             
             ws.onopen = function() {

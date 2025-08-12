@@ -9,7 +9,7 @@ exports.generateSecureToken = generateSecureToken;
 exports.validatePasswordStrength = validatePasswordStrength;
 // 认证工具函数
 const crypto_1 = __importDefault(require("crypto"));
-const keyService_1 = require("./services/keyService");
+const memoryKeyService_1 = require("./services/memoryKeyService");
 /**
  * 时间安全的字符串比较，防止时序攻击
  */
@@ -41,7 +41,7 @@ async function authenticateWebSocket(role, token, userId) {
         }
         // 验证卡密
         try {
-            const keyValidation = await (0, keyService_1.validateKey)(token);
+            const keyValidation = await (0, memoryKeyService_1.validateKey)(token);
             if (keyValidation.valid) {
                 return {
                     valid: true,

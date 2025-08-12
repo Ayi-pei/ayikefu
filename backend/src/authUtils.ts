@@ -1,7 +1,7 @@
 // 认证工具函数
 import crypto from 'crypto';
 import { WebSocketAuthResult, Role } from './types';
-import { validateKey } from './services/keyService';
+import { validateKey } from './services/memoryKeyService';
 
 /**
  * 时间安全的字符串比较，防止时序攻击
