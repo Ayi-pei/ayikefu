@@ -1,6 +1,6 @@
 (function () {
     const s = document.createElement('script');
-    s.src = 'https://crmyun.netlify.app/embed.iife.js'; // 替换为你部署后的实际 URL
+    s.src = 'https://ayikefu.onrender.com/embed.iife.js'; // 替换为你部署后的实际 URL
   s.defer = true;
   document.head.appendChild(s);
 })();

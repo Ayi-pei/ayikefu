@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",
-    "build": "node -e \"const fs=require('fs'); if(!fs.existsSync('dist')) fs.mkdirSync('dist'); fs.copyFileSync('src/embed.js', 'dist/embed.iife.js');\"",
+    "build": "node -e \"const fs=require('fs'); if(!fs.existsSync('dist')) fs.mkdirSync('dist'); fs.copyFileSync('src/embed.js', 'dist/embed.iife.js'); fs.copyFileSync('index.html', 'dist/index.html');\"",
     "build:vite": "vite build",
     "preview": "vite preview --port 5173"
   },
