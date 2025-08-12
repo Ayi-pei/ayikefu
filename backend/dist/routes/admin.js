@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const keyService = __importStar(require("../services/keyService"));
+const keyService = __importStar(require("../services/memoryKeyService"));
 const auth_1 = require("../auth");
 const router = express_1.default.Router();
 router.post('/keys', auth_1.requireAdmin, (req, res) => {
