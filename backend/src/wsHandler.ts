@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { redis, keyPrefix } from './redisClient';
+import { safeRedis as redis, keyPrefix } from './redisClient';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage } from './types';
 

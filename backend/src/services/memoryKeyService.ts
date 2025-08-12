@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { redis, keyPrefix } from '../redisClient';
+import { safeRedis as redis, keyPrefix } from '../redisClient';
 
 // 内存存储，避免 SQLite 编译问题
 const memoryKeys = new Map<string, {
